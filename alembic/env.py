@@ -1,25 +1,31 @@
 from logging.config import fileConfig
-from alembic import context
 from sqlalchemy import engine_from_config, pool
-
-from app.config.dependencies import get_settings
+from alembic import context
 from app.db.models.base import Base
-from app.db import models  # this imports all your models to register them
+from app.db import models  # ensure all models are registered
+from dotenv import load_dotenv
+import os
+
+# Load environment variables
+load_dotenv()
 
 # Alembic Config
 config = context.config
 fileConfig(config.config_file_name)
 
-# Set database URL from settings
-settings = get_settings()
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# Read DATABASE_URL from env
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Metadata for autogenerate support
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is not set or found in .env")
+
+config.set_main_option("sqlalchemy.url", DATABASE_URL)
+
+# Metadata for autogenerate
 target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
-    """Run migrations without a DB connection."""
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
@@ -34,7 +40,6 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    """Run migrations with a DB connection."""
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",

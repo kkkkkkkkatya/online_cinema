@@ -9,9 +9,8 @@ from app.db.models.base import Base
 settings = get_settings()
 
 DATABASE_URL = settings.DATABASE_URL
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-connection = engine.connect()
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=connection)
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def get_db() -> Session:
@@ -32,6 +31,7 @@ def get_db_contextmanager() -> Session:
 
 
 def reset_database():
-    with connection.begin():
+    with engine.begin() as connection:
         Base.metadata.drop_all(bind=connection)
         Base.metadata.create_all(bind=connection)
+
