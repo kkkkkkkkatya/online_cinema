@@ -11,5 +11,16 @@ from .models.accounts import (
     RefreshTokenModel
 )
 
+from .models.movies import (
+    MoviesGenresModel,
+    MoviesDirectorsModel,
+    MoviesStarsModel,
+    GenreModel,
+    StarModel,
+    DirectorModel,
+    CertificationModel,
+    MovieModel
+)
+
 from .database import get_db, get_db_contextmanager, reset_database
 from .validators import accounts as accounts_validators
