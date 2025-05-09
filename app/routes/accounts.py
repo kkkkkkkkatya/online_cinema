@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import cast
 
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, status, HTTPException, Body
 from sqlalchemy import select, delete
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -70,26 +70,7 @@ async def register_user(
         db: AsyncSession = Depends(get_db),
         email_sender: EmailSenderInterface = Depends(get_accounts_email_notificator),
 ) -> UserRegistrationResponseSchema:
-    """
-    Endpoint for user registration.
 
-    Registers a new user, hashes their password, and assigns them to the default user group.
-    If a user with the same email already exists, an HTTP 409 error is raised.
-    In case of any unexpected issues during the creation process, an HTTP 500 error is returned.
-
-    Args:
-        user_data (UserRegistrationRequestSchema): The registration details including email and password.
-        db (AsyncSession): The asynchronous database session.
-        email_sender (EmailSenderInterface): The asynchronous email sender.
-
-    Returns:
-        UserRegistrationResponseSchema: The newly created user's details.
-
-    Raises:
-        HTTPException:
-            - 409 Conflict if a user with the same email exists.
-            - 500 Internal Server Error if an error occurs during user creation.
-    """
     stmt = select(UserModel).where(UserModel.email == user_data.email)
     result = await db.execute(stmt)
     existing_user = result.scalars().first()
@@ -175,27 +156,7 @@ async def activate_account(
         db: AsyncSession = Depends(get_db),
         email_sender: EmailSenderInterface = Depends(get_accounts_email_notificator),
 ) -> MessageResponseSchema:
-    """
-    Endpoint to activate a user's account.
 
-    This endpoint verifies the activation token for a user by checking that the token record exists
-    and that it has not expired. If the token is valid and the user's account is not already active,
-    the user's account is activated and the activation token is deleted. If the token is invalid, expired,
-    or if the account is already active, an HTTP 400 error is raised.
-
-    Args:
-        activation_data (UserActivationRequestSchema): Contains the user's email and activation token.
-        db (AsyncSession): The asynchronous database session.
-        email_sender (EmailSenderInterface): The asynchronous email sender.
-
-    Returns:
-        MessageResponseSchema: A response message confirming successful activation.
-
-    Raises:
-        HTTPException:
-            - 400 Bad Request if the activation token is invalid or expired.
-            - 400 Bad Request if the user account is already active.
-    """
     stmt = (
         select(ActivationTokenModel)
         .options(joinedload(ActivationTokenModel.user))
@@ -254,20 +215,7 @@ async def request_password_reset_token(
         db: AsyncSession = Depends(get_db),
         email_sender: EmailSenderInterface = Depends(get_accounts_email_notificator)
 ) -> MessageResponseSchema:
-    """
-    Endpoint to request a password reset token.
 
-    If the user exists and is active, invalidates any existing password reset tokens and generates a new one.
-    Always responds with a success message to avoid leaking user information.
-
-    Args:
-        data (PasswordResetRequestSchema): The request data containing the user's email.
-        db (AsyncSession): The asynchronous database session.
-        email_sender (EmailSenderInterface): The asynchronous email sender.
-
-    Returns:
-        MessageResponseSchema: A success message indicating that instructions will be sent.
-    """
     stmt = select(UserModel).filter_by(email=data.email)
     result = await db.execute(stmt)
     user = result.scalars().first()
@@ -343,26 +291,6 @@ async def reset_password(
         db: AsyncSession = Depends(get_db),
         email_sender: EmailSenderInterface = Depends(get_accounts_email_notificator)
 ) -> MessageResponseSchema:
-    """
-    Endpoint for resetting a user's password.
-
-    Validates the token and updates the user's password if the token is valid and not expired.
-    Deletes the token after a successful password reset.
-
-    Args:
-        data (PasswordResetCompleteRequestSchema): The request data containing the user's email,
-         token, and new password.
-        db (AsyncSession): The asynchronous database session.
-        email_sender (EmailSenderInterface): The asynchronous email sender.
-
-    Returns:
-        MessageResponseSchema: A response message indicating successful password reset.
-
-    Raises:
-        HTTPException:
-            - 400 Bad Request if the email or token is invalid, or the token has expired.
-            - 500 Internal Server Error if an error occurs during the password reset process.
-    """
     stmt = select(UserModel).filter_by(email=data.email)
     result = await db.execute(stmt)
     user = result.scalars().first()
@@ -460,27 +388,6 @@ async def login_user(
         settings: BaseAppSettings = Depends(get_settings),
         jwt_manager: JWTAuthManagerInterface = Depends(get_jwt_auth_manager),
 ) -> UserLoginResponseSchema:
-    """
-    Endpoint for user login.
-
-    Authenticates a user using their email and password.
-    If authentication is successful, creates a new refresh token and returns both access and refresh tokens.
-
-    Args:
-        login_data (UserLoginRequestSchema): The login credentials.
-        db (AsyncSession): The asynchronous database session.
-        settings (BaseAppSettings): The application settings.
-        jwt_manager (JWTAuthManagerInterface): The JWT authentication manager.
-
-    Returns:
-        UserLoginResponseSchema: A response containing the access and refresh tokens.
-
-    Raises:
-        HTTPException:
-            - 401 Unauthorized if the email or password is invalid.
-            - 403 Forbidden if the user account is not activated.
-            - 500 Internal Server Error if an error occurs during token creation.
-    """
     stmt = select(UserModel).filter_by(email=login_data.email)
     result = await db.execute(stmt)
     user = result.scalars().first()
@@ -520,6 +427,71 @@ async def login_user(
         access_token=jwt_access_token,
         refresh_token=jwt_refresh_token,
     )
+
+
+@router.post(
+    "/logout/",
+    response_model=MessageResponseSchema,
+    summary="User Logout",
+    description="Revoke the refresh token and log the user out.",
+    status_code=status.HTTP_200_OK,
+    responses={
+        400: {
+            "description": "Bad Request - The provided refresh token is invalid or expired.",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Invalid refresh token."}
+                }
+            },
+        },
+        401: {
+            "description": "Unauthorized - Refresh token not found.",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Refresh token not found."}
+                }
+            },
+        },
+    },
+)
+async def logout_user(
+        db: AsyncSession = Depends(get_db),
+        jwt_manager: JWTAuthManagerInterface = Depends(get_jwt_auth_manager),
+        refresh_token: str = Body(..., embed=True, example="your-refresh-token-here"),
+) -> MessageResponseSchema:
+    """
+    Logs out a user by revoking the provided refresh token.
+    """
+    try:
+        decoded_token = jwt_manager.decode_refresh_token(refresh_token)
+    except BaseSecurityError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        )
+
+    stmt = select(RefreshTokenModel).filter_by(token=refresh_token)
+    result = await db.execute(stmt)
+    token_obj = result.scalars().first()
+
+    if not token_obj:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token not found.",
+        )
+
+    await db.delete(token_obj)
+
+    try:
+        await db.commit()
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to revoke the refresh token.",
+        )
+
+    return MessageResponseSchema(message="Logout successful.")
 
 
 @router.post(
@@ -566,26 +538,6 @@ async def refresh_access_token(
         db: AsyncSession = Depends(get_db),
         jwt_manager: JWTAuthManagerInterface = Depends(get_jwt_auth_manager),
 ) -> TokenRefreshResponseSchema:
-    """
-    Endpoint to refresh an access token.
-
-    Validates the provided refresh token, extracts the user ID from it, and issues
-    a new access token. If the token is invalid or expired, an error is returned.
-
-    Args:
-        token_data (TokenRefreshRequestSchema): Contains the refresh token.
-        db (AsyncSession): The asynchronous database session.
-        jwt_manager (JWTAuthManagerInterface): JWT authentication manager.
-
-    Returns:
-        TokenRefreshResponseSchema: A new access token.
-
-    Raises:
-        HTTPException:
-            - 400 Bad Request if the token is invalid or expired.
-            - 401 Unauthorized if the refresh token is not found.
-            - 404 Not Found if the user associated with the token does not exist.
-    """
     try:
         decoded_token = jwt_manager.decode_refresh_token(token_data.refresh_token)
         user_id = decoded_token.get("user_id")
