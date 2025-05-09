@@ -1,8 +1,9 @@
+import uvicorn
 from fastapi import FastAPI
+
+from app.routes import accounts
 
 app = FastAPI()
 
-@app.get("/")
-def read_root():
-    return {"message": "Hello from FastAPI + Poetry + Docker!"}
+app.include_router(accounts, prefix="/accounts", tags=["accounts"])
 
