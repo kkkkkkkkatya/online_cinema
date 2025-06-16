@@ -109,7 +109,8 @@ def get_s3_storage_client(
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
-from app.db import get_db, UserModel, UserGroupEnum
+from app.db import UserModel, UserGroupEnum
+from app.db.database import get_db
 
 async def require_moderator_or_admin_user(
     token: str = Depends(oauth2_scheme),

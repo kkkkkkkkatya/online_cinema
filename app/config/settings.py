@@ -52,8 +52,7 @@ class Settings(BaseAppSettings):
     @property
     def DATABASE_URL(self) -> str:
         return (
-            f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
-            f"@{self.POSTGRES_HOST}:{self.POSTGRES_DB_PORT}/{self.POSTGRES_DB}"
+            "postgresql+asyncpg://postgres:va1427sya@localhost:5432/postgres"
         )
 
 

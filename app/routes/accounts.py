@@ -9,7 +9,6 @@ from sqlalchemy.orm import joinedload
 
 from app.config import get_jwt_auth_manager, get_settings, BaseAppSettings, get_accounts_email_notificator
 from app.db import (
-    get_db,
     UserModel,
     UserGroupModel,
     UserGroupEnum,
@@ -17,6 +16,7 @@ from app.db import (
     PasswordResetTokenModel,
     RefreshTokenModel
 )
+from app.db.database import get_db
 from app.exceptions import BaseSecurityError
 from app.notifications import EmailSenderInterface
 from app.schemas import (

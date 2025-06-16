@@ -5,7 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.config import require_moderator_or_admin_user
-from app.db import get_db, UserModel
+from app.db import UserModel
+from app.db.database import get_db
 from app.db.models.movies import (
     MovieModel,
     GenreModel,
