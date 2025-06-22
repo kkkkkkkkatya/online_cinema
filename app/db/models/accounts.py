@@ -28,14 +28,14 @@ from app.security.utils import generate_secure_token
 
 
 class UserGroupEnum(str, enum.Enum):
-    USER = "user"
-    MODERATOR = "moderator"
-    ADMIN = "admin"
+    USER = "USER"
+    MODERATOR = "MODERATOR"
+    ADMIN = "ADMIN"
 
 
 class GenderEnum(str, enum.Enum):
-    MAN = "man"
-    WOMAN = "woman"
+    MAN = "MAN"
+    WOMAN = "WOMAN"
 
 
 class UserGroupModel(Base):
