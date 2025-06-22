@@ -4,5 +4,6 @@ from .dependencies import (
     get_jwt_auth_manager,
     get_accounts_email_notificator,
     get_s3_storage_client,
+    get_current_user,
     require_moderator_or_admin_user
 )

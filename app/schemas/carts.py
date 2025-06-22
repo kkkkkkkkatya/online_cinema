@@ -1,16 +1,17 @@
 from typing import List
+from decimal import Decimal
 
 from pydantic import BaseModel
 
 
-class CartItemResponse(BaseModel):
+class CartItemBaseSchema(BaseModel):
     id: int
     title: str
-    price: float
+    price: Decimal
     genre: List[str]
     release_year: int
 
 
-class CartResponse(BaseModel):
+class CartResponseSchema(BaseModel):
     id: int
-    items: List[CartItemResponse]
+    items: List[CartItemBaseSchema]
