@@ -112,18 +112,16 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 from app.db import UserModel, UserGroupEnum
 from app.db.database import get_db
 
-async def require_moderator_or_admin_user(
+async def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db),
     jwt_manager: JWTAuthManagerInterface = Depends(get_jwt_auth_manager)
 ) -> UserModel:
-    """
-    Dependency that ensures the current user is a moderator or admin.
-    Raises 403 if unauthorized.
-    """
     try:
         payload = jwt_manager.decode_access_token(token)
         user_id = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -133,12 +131,26 @@ async def require_moderator_or_admin_user(
     stmt = select(UserModel).where(UserModel.id == user_id)
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
-
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
+async def require_moderator_or_admin_user(
+    token: str = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db),
+    jwt_manager: JWTAuthManagerInterface = Depends(get_jwt_auth_manager)
+) -> UserModel:
+    """
+    Dependency that ensures the current user is a moderator or admin.
+    Raises 403 if unauthorized.
+    """
+    user = await get_current_user(token=token, db=db, jwt_manager=jwt_manager)
+
     if user.group.name not in (UserGroupEnum.ADMIN, UserGroupEnum.MODERATOR):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to perform this action."
         )
+
     return user
