@@ -6,7 +6,6 @@ from sqlalchemy.orm import mapped_column, Mapped, relationship
 
 from .base import Base
 
-
 MoviesGenresModel = Table(
     "movies_genres",
     Base.metadata,
@@ -113,20 +112,21 @@ class MovieModel(Base):
     price: Mapped[float] = mapped_column(DECIMAL(10, 2), nullable=False)
     certification_id: Mapped[int] = mapped_column(ForeignKey("certifications.id"), nullable=False)
     certification: Mapped[CertificationModel] = relationship(back_populates="movies")
+    cart_items: Mapped[list["CartItemModel"]] = relationship("CartItemModel", back_populates="movie")
     genres: Mapped[list["GenreModel"]] = relationship(
-        "Genre",
+        "GenreModel",
         secondary=MoviesGenresModel,
         back_populates="movies"
     )
 
     directors: Mapped[list["DirectorModel"]] = relationship(
-        "Director",
+        "DirectorModel",
         secondary=MoviesDirectorsModel,
         back_populates="movies"
     )
 
     stars: Mapped[list["StarModel"]] = relationship(
-        "Star",
+        "StarModel",
         secondary=MoviesStarsModel,
         back_populates="movies"
     )
