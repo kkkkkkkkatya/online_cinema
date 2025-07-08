@@ -22,8 +22,8 @@ async def get_db_contextmanager() -> AsyncSession:
         yield session
 
 
-def reset_database():
-    with engine.begin() as connection:
-        Base.metadata.drop_all(bind=connection)
-        Base.metadata.create_all(bind=connection)
+async def reset_database():
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.drop_all)
+        await connection.run_sync(Base.metadata.create_all)
 
